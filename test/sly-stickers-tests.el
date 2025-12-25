@@ -40,13 +40,14 @@
 
 (cl-defmacro sly-stickers--with-fixture ((forms sticker-prefixes) &rest body)
   (declare (indent defun) (debug (sexp &rest form)))
-  `(sly-stickers--call-with-fixture #'(lambda () ,@body) ,forms ,sticker-prefixes))
+  `(sly-stickers--call-with-fixture (lambda () ,@body) ,forms ,sticker-prefixes))
 
 (defun sly-stickers--topmost-sticker ()
-  (car (sly-button--overlays-at (point))))
+  (car (sly-button--overlays-at
+        (point) (lambda (o) (eq (button-type o) 'sly-stickers-sticker)))))
 
 (defun sly-stickers--base-face (sticker)
-  (let ((face (button-get sticker 'face)))
+  (let ((face (overlay-get sticker 'face)))
     (if (atom face)
         face
       (plist-get face :inherit))))
@@ -108,10 +109,10 @@
       (ert-fail "Expected invalid FOO sticker to remain unarmed"))
     (ert-simulate-command '(sly-stickers-next-sticker 1))
     (unless (sly-stickers--face-p 'sly-stickers-placed-face)
-      (ert-fail "Expected valid FOO sticker to remain unarmed"))
+      (ert-fail "Expected valid BAR sticker to remain unarmed"))
     (ert-simulate-command '(sly-stickers-next-sticker 1))
     (unless (sly-stickers--face-p 'sly-stickers-placed-face)
-      (ert-fail "Expected valid FOO sticker to remain unarmed"))))
+      (ert-fail "Expected valid BAZ sticker to remain unarmed"))))
 
 (define-sly-ert-test stickers-in-a-file
   "Test compiling a file with some valid and invalid stickers."
@@ -120,7 +121,7 @@
                                  (defun baz () 42)
                                  (defun xpto () (let ((coiso)) coiso)))
                                '("(bar" "(baz" "(coiso"))
-    
+
     (goto-char (point-min))
     (call-interactively 'sly-compile-and-load-file)
     (sly-sync-to-top-level 1)
@@ -140,7 +141,7 @@
                                  (defun bar (x) (values (list x) 'bar))
                                  (defun baz () 42))
                                '("(bar" "(baz"))
-    
+
     (goto-char (point-min))
     (call-interactively 'sly-compile-and-load-file)
     (sly-sync-to-top-level 1)
@@ -155,7 +156,7 @@
       (ert-fail "Expected BAR sticker to have some information"))
 
     ;; This part still needs work
-    ;; 
+    ;;
     ;; (ert-simulate-command '(sly-stickers-next-sticker 1))
     ;; (ert-simulate-command '(sly-stickers-next-sticker 1))
     ;; (call-interactively 'sly-compile-defun)

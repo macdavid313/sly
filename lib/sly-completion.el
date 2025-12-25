@@ -3,7 +3,7 @@
 ;; Copyright (C) 2016  João Távora
 
 ;; Author: João Távora
-;; Keywords: 
+;; Keywords:
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -16,16 +16,17 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
-;; 
+;;
 
 ;;; Code:
 ;;;
 (require 'cl-lib)
 (require 'comint)
+(require 'subr-x)
 (require 'sly-messages "lib/sly-messages")
 
 
@@ -44,7 +45,7 @@
 
 (defun sly--external-allc (string table pred _point)
   "Like `completion-all-completions', ask table for all completions."
-  (funcall table string pred t)) 
+  (funcall table string pred t))
 
 (defun sly--external-tryc (pat table pred point)
   "Like `completion-try-completions', but knowing how SLY works."
@@ -177,7 +178,7 @@ COMMON a string, the common prefix."
            for completion in completions
            do (put-text-property first-difference-pos
                                  (min (1+ first-difference-pos)
-                                      (1- (length completion))) 
+                                      (1- (length completion)))
                                  'face
                                  'completions-first-difference
                                  completion)
@@ -259,7 +260,8 @@ ANNOTATION) describing each completion possibility."
           ;; all completions
           (`t (car (all)))
           ;; try completion
-          (`nil (try-completion pattern (car (all))))
+          (`nil (or (try-completion pattern (car (all)))
+                    pattern))
           (`(boundaries . ,thing)
            (completion-boundaries pattern (car (all)) pred thing))
           ;; boundaries or any other value
@@ -361,10 +363,7 @@ Intended to go into `completion-at-point-functions'"
   (setq-local completion-at-point-functions '(sly-complete-filename-maybe
                                               sly-complete-symbol))
   (add-function :around (local 'completion-in-region-function)
-                (lambda (oldfun &rest args)
-                  (if sly-symbol-completion-mode
-                      (apply #'sly--completion-in-region-function args)
-                    (apply oldfun args)))
+                #'sly--completion-in-region-function
                 '((name . sly--setup-completion))))
 
 (define-minor-mode sly-symbol-completion-mode "Fancy SLY UI for Lisp symbols" t
@@ -375,21 +374,24 @@ Intended to go into `completion-at-point-functions'"
 
 ;;; TODO: Most of the stuff emulates `completion--in-region' and its
 ;;; callees in Emacs's minibuffer.el
-;;; 
+;;;
 (defvar sly--completion-transient-data nil)  ; similar to `completion-in-region--data'
 
 (defvar sly--completion-transient-completions nil) ; not used
 
 ;;; TODO: not tested with other functions in `completion-at-point-functions'
-;;; 
-(defun sly--completion-in-region-function (beg end function pred)
+;;;
+(defun sly--completion-in-region-function (orig-fun beg end collection pred
+                                           &rest rest)
   (cond
-   ((funcall function nil nil 'sly--identify)
+   ((and sly-symbol-completion-mode
+         (functionp collection)
+         (funcall collection nil nil 'sly--identify))
     (let* ((pattern (buffer-substring-no-properties beg end))
            (all
-            (all-completions pattern function pred))
+            (all-completions pattern collection pred))
            (try
-            (try-completion pattern function pred)))
+            (try-completion pattern collection pred)))
       (setq this-command 'completion-at-point) ; even if we started with `minibuffer-complete'!
       (setq sly--completion-transient-completions all)
       (cond ((eq try t)
@@ -404,7 +406,7 @@ Intended to go into `completion-at-point-functions'"
              (let ((pattern-overlay (make-overlay beg end nil nil nil)))
                (setq sly--completion-transient-data
                      `(,pattern-overlay
-                       ,function
+                       ,collection
                        ,pred))
                (overlay-put pattern-overlay 'face 'highlight)
                (sly--completion-pop-up-completions-buffer pattern all)
@@ -413,8 +415,7 @@ Intended to go into `completion-at-point-functions'"
             ((> (length pattern) 0)
              (sly-temp-message 0 2 "No completions for %s" pattern)))))
    (t
-    (funcall (default-value 'completion-in-region-function)
-             beg end function pred))))
+    (apply orig-fun beg end collection pred rest))))
 
 (defvar sly--completion-in-region-overlay
   (let ((ov (make-overlay 0 0)))
@@ -752,7 +753,7 @@ The user is prompted if a prefix argument is in effect, if there is no
 symbol at point, or if QUERY is non-nil."
   (let* ((sym-at-point (sly-symbol-at-point))
          (completion-category-overrides
-          (cons '(sly-completion (styles . (backend)))
+          (cons '(sly-completion (styles . (sly--external-completion)))
                 completion-category-overrides))
          (wrapper (sly--completion-function-wrapper sly-complete-symbol-function))
          (do-it (lambda () (completing-read prompt wrapper nil nil sym-at-point))))

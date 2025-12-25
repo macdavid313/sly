@@ -3,7 +3,7 @@
 ;; Copyright (C) 2014  João Távora
 
 ;; Author: João Távora <joaotavora@gmail.com>
-;; Keywords: 
+;; Keywords:
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -16,11 +16,11 @@
 ;; GNU General Public License for more details.
 
 ;; You should have received a copy of the GNU General Public License
-;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+;; along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
 
-;; 
+;;
 
 ;;; Code:
 
@@ -46,7 +46,7 @@ A nil value for WAIT means \"now\".
 SIT-FOR is has the semantincs of `minibuffer-message-timeout', which see."
   (run-with-timer
    wait nil
-   #'(lambda ()
+   (lambda ()
        (let ((existing sly--last-message)
              (text (apply #'format format args)))
          (if (minibuffer-window-active-p (minibuffer-window))
@@ -56,7 +56,7 @@ SIT-FOR is has the semantincs of `minibuffer-message-timeout', which see."
            (run-with-timer
             sit-for
             nil
-            #'(lambda ()
+            (lambda ()
                 ;; restore the message
                 (when existing
                   (message "%s" existing)))))))))

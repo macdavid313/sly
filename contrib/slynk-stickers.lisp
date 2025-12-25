@@ -98,7 +98,7 @@ stickers in DEAD-STICKERS are killed. NEW-STICKERS are not necessarily
 \"new\" in the sense that the ids are not assigned by Slynk, but
 their ignore-spec is reset nonetheless."
   ;; Dead stickers are unconditionally removed from *stickers*
-  ;; 
+  ;;
   (kill-stickers dead-stickers)
   (let ((probe
           (handler-case
@@ -242,7 +242,7 @@ after.")
                                       increment)
   "Return two values: a RECORDING and its position in *RECORDINGS*.
 Start searching from position FROM, an index in *RECORDINGS* which is
-successibely increased by INCREMENT before using that to index
+successively increased by INCREMENT before using that to index
 *RECORDINGS*."
   (loop for starting-position in `(,from ,(if (plusp increment)
                                               -1
@@ -250,14 +250,16 @@ successibely increased by INCREMENT before using that to index
         ;; this funky scheme has something to do with rollover
         ;; semantics probably
         ;;
-        for inc in `(,increment ,(if (plusp increment) 1 -1))
+        for inc in `(,increment ,(if (plusp from) 1 -1))
         for (rec idx) = (loop for cand-idx = (incf starting-position
                                                    inc)
-                              while (< -1 cand-idx (length *recordings*))
-                              for recording = (aref *recordings* cand-idx)
-                              for sid = (id-of (sticker-of recording))
-                              unless (funcall ignore-p sid)
-                                return (list recording cand-idx))
+                              if (< -1 cand-idx (length *recordings*))
+                                do (let* ((recording (aref *recordings* cand-idx))
+                                          (sid (id-of (sticker-of recording))))
+                                     (unless (funcall ignore-p sid)
+                                       (return (list recording cand-idx))))
+                              else
+                                do (return (list nil cand-idx)))
         when rec
           return (values rec idx)))
 

@@ -151,7 +151,8 @@ Bindings appearing earlier in the list take priority"
   `(progn
      (defun ,name ,arglist ,@rest)
      (setf (gethash ',name *slyfuns*) #',name)
-     ;; see <http://www.franz.com/support/documentation/6.2/\
+     ;; see <https://web.archive.org/web/20060627180512/\
+     ;; https://www.franz.com/support/documentation/6.2/\
      ;; doc/pages/variables/compiler/\
      ;; s_cltl1-compile-file-toplevel-compatibility-p_s.htm>
      (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -200,18 +201,18 @@ Backend code should treat the connection structure as opaque.")
 ;;;; Connections
 ;;;
 ;;; Connection structures represent the network connections between
-;;; Emacs and Lisp. 
+;;; Emacs and Lisp.
 ;;;
 (defstruct (connection
              (:constructor %make-connection)
              (:conc-name connection-)
              (:print-function print-connection))
   ;; The listening socket. (usually closed)
-  ;; 
+  ;;
   (socket           (missing-arg) :type t :read-only t)
   ;; Character I/O stream of socket connection.  Read-only to avoid
   ;; race conditions during initialization.
-  ;; 
+  ;;
   (socket-io        (missing-arg) :type stream :read-only t)
   ;; An alist of (ID . CHANNEL) entries. Channels are good for
   ;; streaming data over the wire (see their description in sly.el)
@@ -225,19 +226,19 @@ Backend code should treat the connection structure as opaque.")
   ;; A list of INSPECTOR objects. Each inspector has its own history
   ;; of inspected objects. An inspector might also be tied to a
   ;; specific thread.
-  ;; 
+  ;;
   (inspectors '() :type list)
   ;;Cache of macro-indentation information that
   ;; has been sent to Emacs.  This is used for preparing deltas to
   ;; update Emacs's knowledge.  Maps: symbol ->
   ;; indentation-specification
-  ;; 
+  ;;
   (indentation-cache (make-hash-table :test 'eq) :type hash-table)
   ;; The list of packages represented in the cache:
-  ;; 
+  ;;
   (indentation-cache-packages '())
   ;; The communication style used.
-  ;; 
+  ;;
   (communication-style nil :type (member nil :spawn :sigio :fd-handler))
   )
 
@@ -520,7 +521,8 @@ corresponding values in the CDR of VALUE."
 (defun channel-thread-id (channel)
   (slynk-backend:thread-id (channel-thread channel)))
 
-(defmethod close-channel (channel &key)
+(defmethod close-channel (channel &key force)
+  (declare (ignore force))
   (let ((probe (find-channel (channel-id channel))))
     (cond (probe (setf (channels) (delete probe (channels))))
           (t (error "Can't close invalid channel: ~a" channel)))))
@@ -551,7 +553,7 @@ corresponding values in the CDR of VALUE."
 
 (defmacro listeners () `(connection-listeners *emacs-connection*))
 
-(defmethod initialize-instance :after ((l listener) &key initial-env) 
+(defmethod initialize-instance :after ((l listener) &key initial-env)
   (with-slots (out in env) l
     (let ((io (make-two-way-stream in out)))
       (setf env
@@ -591,7 +593,7 @@ corresponding values in the CDR of VALUE."
   (let ((listener-sym (gensym))
         (body-fn-sym (gensym)))
     `(let ((,listener-sym (default-listener ,connection))
-           (,body-fn-sym #'(lambda () ,@body)))
+           (,body-fn-sym (lambda () ,@body)))
        (if ,listener-sym
            (with-listener-bindings ,listener-sym
              (funcall ,body-fn-sym))
@@ -1178,7 +1180,7 @@ point the thread terminates and CHANNEL is closed."
             (escape-non-ascii (safe-condition-message condition)))
     (let ((*emacs-connection* c))
       (format *log-output* "~&;; closing ~a channels~%" (length (connection-channels c)))
-      (mapc #'(lambda (c) (close-channel c :force t)) (connection-channels c))
+      (mapc (lambda (c) (close-channel c :force t)) (connection-channels c))
       (format *log-output* "~&;; closing ~a listeners~%" (length (connection-listeners c)))
       (ignore-errors
        (mapc #'close-listener (connection-listeners c))))
@@ -1309,12 +1311,12 @@ point the thread terminates and CHANNEL is closed."
        (cond ((and ch thread)
               (send-event thread `(:emacs-channel-send ,ch ,msg)))
              (ch
-              (encode-message 
+              (encode-message
                (list :invalid-channel channel-id
                      "No suitable threads for channel")
                (current-socket-io)))
              (t
-              (encode-message 
+              (encode-message
                (list :invalid-channel channel-id "Channel not found")
                (current-socket-io))))))
     ((:reader-error packet condition)
@@ -1988,7 +1990,7 @@ invoke our debugger.  EXTRA-REX-OPTIONS are passed to the functions of
                                      ;; (setq result (apply (car form) (cdr form)))
                                      (eval form)))
                               ;; Honour *EVAL-FOR-EMACS-WRAPPERS*
-                              ;; 
+                              ;;
                               (loop for lambda = #'eval-it then
                                                            (handler-case
                                                                (apply wrapper lambda extra-rex-options)
@@ -2069,7 +2071,7 @@ May insert newlines between each of VALUES.  Considers
           (t
            (let ((strings (loop for v in values
                                 collect (funcall fn v))))
-             (if (some #'(lambda (s) (find #\Newline s))
+             (if (some (lambda (s) (find #\Newline s))
                        strings)
                  (format nil "~{~a~^~%~}" strings)
                  (format nil "~{~a~^, ~}" strings)))))))
@@ -2288,7 +2290,7 @@ MAP -- rewrite the chars in STRING according to this alist."
 (defvar *canonical-package-nicknames*
   `((:common-lisp-user . :cl-user))
   "Canonical package names to use instead of shortest name/nickname.")
-  
+
 (defvar *auto-abbreviate-dotted-packages* t
   "Abbreviate dotted package names to their last component if T.")
 
@@ -2562,7 +2564,7 @@ conditions are simply reported."
   ;; JT@15/08/24: FIXME: Actually, with a nice and proper method-combination for
   ;; interfaces (as was once quite bravely attempted by Helmut, this variable
   ;; could go away and contribs could simply add methods to CONDITION-EXTRAS)
-  ;; 
+  ;;
   "A property list of extra options describing a condition.
 This works much like the CONDITION-EXTRAS interface, but can be
 dynamically bound by contribs when invoking the debugger.")
@@ -2672,7 +2674,7 @@ Operation was KERNEL::DIVISION, operands (1 0).\"
                             (format nil "~a" (or prompt
                                                  "[restart prompt] :"))))))
                 (make-output-stream
-                 #'(lambda (s)
+                 (lambda (s)
                      (setq prompt
                            (concatenate 'string
                                         (or prompt "")
@@ -3444,7 +3446,7 @@ DSPEC is a string and LOCATION a source location. NAME is a string."
    (name :initarg :name :initform (error "Name this INSPECTOR!") :accessor inspector-name)))
 
 (defmethod print-object ((i inspector) s)
-  (print-unreadable-object (i s :type t) 
+  (print-unreadable-object (i s :type t)
     (format s "~a/~a" (inspector-name i) (length (inspector-%history i)))))
 
 (defmethod initialize-instance :after ((i inspector) &key name)
@@ -3787,7 +3789,7 @@ Return NIL if LIST is circular."
            `((:value ,key) " = " (:value ,value)
              " " (:action "[remove entry]"
                           ,(let ((key key))
-                                (lambda () (remhash key ht))))
+                             (lambda () (remhash key ht))))
              (:newline))))))
 
 ;;;;; Arrays
@@ -3850,7 +3852,7 @@ Example:
   (when (and *emacs-connection*
              (use-threads-p)
              ;; FIXME: hardcoded thread name
-             (equalp (thread-name (current-thread)) "slynk-worker")) 
+             (equalp (thread-name (current-thread)) "slynk-worker"))
     (setf *thread-list* (delete (current-thread) *thread-list*)))
   (let* ((plist (thread-attributes (car *thread-list*)))
          (labels (loop for (key) on plist by #'cddr
@@ -4023,8 +4025,8 @@ belonging to PACKAGE."
       (cond (force
              (do-all-symbols (symbol)
                (consider symbol)))
-            ((package-name package) ; don't try to iterate over a
-                                    ; deleted package.
+            ((package-name package)     ; don't try to iterate over a
+                                        ; deleted package.
              (do-symbols (symbol package)
                (when (eq (symbol-package symbol) package)
                  (consider symbol)))))

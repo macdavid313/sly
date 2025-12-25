@@ -196,7 +196,7 @@ Backends implement these functions using DEFIMPLEMENTATION."
        (if (member ',sym *interface-functions*)
            (setq *unimplemented-interfaces*
                  (remove ',sym *unimplemented-interfaces*))
-           (warn "DEFIMPLEMENTATION of undefined interface (~S)" ',sym))
+           (warn "DEFIMPLEMENTATION of undefined interface (~S)" ',name))
        ',sym)))
 
 (defun warn-unimplemented-interfaces ()
@@ -1123,7 +1123,7 @@ returns.")
   (let ((gblock (gensym "CONVERTING-ERRORS+")))
     `(block ,gblock
        (handler-bind ((error
-                       #'(lambda (e)
+                       (lambda (e)
                             (if *debug-slynk-backend*
                                 nil     ;decline
                                 (return-from ,gblock
